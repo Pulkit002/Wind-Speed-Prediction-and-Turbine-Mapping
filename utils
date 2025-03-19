@@ -1,0 +1,107 @@
+import numpy as np
+from sklearn.preprocessing import MinMaxScaler
+from tensorflow.keras.models import load_model
+import logging
+
+# Setup logging for better error tracking and debugging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+
+# Data Preprocessing Utilities
+def scale_data(data):
+    """
+    Scales the data between 0 and 1 using MinMaxScaler.
+    Returns both the scaled data and the fitted scaler for future transformations.
+    
+    Args:
+        data (array-like): The input data to be scaled.
+        
+    Returns:
+        data_scaled (np.ndarray): The scaled data.
+        scaler (MinMaxScaler): The fitted scaler object for future use.
+    """
+    if data is None or len(data) == 0:
+        raise ValueError("Input data is empty or None.")
+    
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    data_scaled = scaler.fit_transform(data.reshape(-1, 1))  # Ensures correct shape for univariate data
+    return data_scaled, scaler
+
+
+def create_sequences(data, seq_length):
+    """
+    Creates sequences from the data for time-series prediction. Each sequence consists of 
+    `seq_length` consecutive data points and the corresponding label is the next data point.
+    
+    Args:
+        data (np.ndarray): The input data array.
+        seq_length (int): The length of each sequence (number of time steps).
+        
+    Returns:
+        sequences (np.ndarray): Array of input sequences.
+        labels (np.ndarray): Array of corresponding labels (the next data point after each sequence).
+    """
+    if len(data) < seq_length:
+        raise ValueError(f"Data length {len(data)} is less than sequence length {seq_length}.")
+    
+    sequences = []
+    labels = []
+    for i in range(seq_length, len(data)):
+        sequences.append(data[i-seq_length:i])
+        labels.append(data[i])
+    
+    return np.array(sequences), np.array(labels)
+
+
+# Model Loading Utility
+def load_lstm_model(model_path):
+    """
+    Loads the pre-trained LSTM model from a .h5 file.
+    
+    Args:
+        model_path (str): The path to the .h5 model file.
+        
+    Returns:
+        model (tensorflow.keras.Model): The loaded LSTM model, or None if loading fails.
+    """
+    try:
+        model = load_model(model_path)
+        logging.info(f"Model loaded successfully from {model_path}")
+        return model
+    except Exception as e:
+        logging.error(f"Error loading model from {model_path}: {e}")
+        return None
+
+
+# Sequence Management Utility
+def update_sequence(current_sequence, new_data, window_size):
+    """
+    Updates the sliding window by appending new data and removing the oldest data.
+    
+    Args:
+        current_sequence (np.ndarray): The current sequence of data points.
+        new_data (float): The new data point to be appended.
+        window_size (int): The fixed window size.
+        
+    Returns:
+        updated_sequence (np.ndarray): The updated sequence with the new data.
+    """
+    if current_sequence.shape[0] != window_size:
+        raise ValueError(f"Current sequence length {current_sequence.shape[0]} does not match window size {window_size}.")
+    
+    updated_sequence = np.append(current_sequence[1:], new_data).reshape(window_size, 1)
+    return updated_sequence
+
+
+# Anemometer Integration Utility (Simulation)
+def get_windspeed_from_anemometer():
+    """
+    Simulates fetching windspeed data from the anemometer. Replace this with actual hardware integration.
+    
+    Returns:
+        windspeed (float): Simulated windspeed value (between 0 and 10 m/s).
+    """
+    simulated_windspeed = np.random.rand(1)[0] * 10  # Simulate windspeed between 0 and 10 m/s
+    logging.info(f"Simulated windspeed: {simulated_windspeed:.2f} m/s")
+    return simulated_windspeed
+
